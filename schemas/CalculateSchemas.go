@@ -11,12 +11,13 @@ type CalculateRequest struct {
 }
 
 type ResultItemResponse struct {
-	Quantity int32
-	Amount   float64
-	Game     int16
+	Quantity int32   `json:"quantity"`
+	Amount   float64 `json:"amount"`
+	Game     int16   `json:"game"`
 }
 
 type ResultListResponse struct {
-	Games       []ResultItemResponse
-	Probability float64
+	Games       []ResultItemResponse `json:"games"`
+	Probability float64              `json:"probability"`
+	TotalAmount float64              `json:"totalAmount"`
 }

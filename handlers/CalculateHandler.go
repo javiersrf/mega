@@ -58,6 +58,7 @@ func CalculateHandler(c *gin.Context) {
 	response := schemas.ResultListResponse{
 		Games:       responseGames,
 		Probability: output.FinalProbability,
+		TotalAmount: output.TotalAmount,
 	}
 
 	c.JSON(http.StatusOK, response)
