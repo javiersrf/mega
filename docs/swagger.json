@@ -1,0 +1,149 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/health": {
+            "get": {
+                "description": "Returns a pong message to indicate the service is up",
+                "summary": "Health Check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.HealthCheckResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/megasena/calculate": {
+            "post": {
+                "description": "This endpoint receives a JSON request containing a budget and a list of games,",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "games"
+                ],
+                "summary": "Calculate game results",
+                "parameters": [
+                    {
+                        "description": "Calculate request containing budget and games",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/schemas.CalculateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful calculation of game results",
+                        "schema": {
+                            "$ref": "#/definitions/schemas.ResultListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid JSON or missing required fields",
+                        "schema": {
+                            "$ref": "#/definitions/schemas.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.HealthCheckResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "schemas.CalculateRequest": {
+            "type": "object",
+            "required": [
+                "budget",
+                "games"
+            ],
+            "properties": {
+                "budget": {
+                    "type": "number"
+                },
+                "games": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schemas.GameRequest"
+                    }
+                }
+            }
+        },
+        "schemas.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "schemas.GameRequest": {
+            "type": "object",
+            "required": [
+                "numbers",
+                "price"
+            ],
+            "properties": {
+                "numbers": {
+                    "type": "integer"
+                },
+                "price": {
+                    "type": "number"
+                }
+            }
+        },
+        "schemas.ResultItemResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "format": "float64"
+                },
+                "game": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "probability": {
+                    "type": "number",
+                    "format": "float64"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "format": "int32"
+                }
+            }
+        },
+        "schemas.ResultListResponse": {
+            "type": "object",
+            "properties": {
+                "games": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/schemas.ResultItemResponse"
+                    }
+                },
+                "probability": {
+                    "type": "number",
+                    "format": "float64"
+                }
+            }
+        }
+    }
+}

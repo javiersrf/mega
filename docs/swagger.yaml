@@ -1,0 +1,98 @@
+definitions:
+  handlers.HealthCheckResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  schemas.CalculateRequest:
+    properties:
+      budget:
+        type: number
+      games:
+        items:
+          $ref: '#/definitions/schemas.GameRequest'
+        type: array
+    required:
+    - budget
+    - games
+    type: object
+  schemas.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  schemas.GameRequest:
+    properties:
+      numbers:
+        type: integer
+      price:
+        type: number
+    required:
+    - numbers
+    - price
+    type: object
+  schemas.ResultItemResponse:
+    properties:
+      amount:
+        format: float64
+        type: number
+      game:
+        format: int32
+        type: integer
+      probability:
+        format: float64
+        type: number
+      quantity:
+        format: int32
+        type: integer
+    type: object
+  schemas.ResultListResponse:
+    properties:
+      games:
+        items:
+          $ref: '#/definitions/schemas.ResultItemResponse'
+        type: array
+      probability:
+        format: float64
+        type: number
+    type: object
+info:
+  contact: {}
+paths:
+  /health:
+    get:
+      description: Returns a pong message to indicate the service is up
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.HealthCheckResponse'
+      summary: Health Check
+  /megasena/calculate:
+    post:
+      consumes:
+      - application/json
+      description: This endpoint receives a JSON request containing a budget and a
+        list of games,
+      parameters:
+      - description: Calculate request containing budget and games
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/schemas.CalculateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful calculation of game results
+          schema:
+            $ref: '#/definitions/schemas.ResultListResponse'
+        "400":
+          description: Bad request - invalid JSON or missing required fields
+          schema:
+            $ref: '#/definitions/schemas.ErrorResponse'
+      summary: Calculate game results
+      tags:
+      - games
+swagger: "2.0"
