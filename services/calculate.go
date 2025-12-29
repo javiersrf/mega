@@ -30,7 +30,9 @@ func computeFinalProbability(items []entities.ResultItem) float64 {
 	prod := 1.0
 	for _, it := range items {
 		p := megaSenaProbability(int(it.Game))
-		prod *= (1 - p)
+		for i := 0; i < int(it.Quantity); i++ {
+			prod *= (1 - p)
+		}
 	}
 	return 1 - prod
 }
@@ -38,49 +40,59 @@ func computeFinalProbability(items []entities.ResultItem) float64 {
 func CalculateBestCombination(budget float64, games []entities.Game) entities.OptimizationResult {
 	cents := int(math.Round(float64(budget * 100)))
 
-	// dp[i] = melhor benefício possível com i centavos
 	dp := make([]float64, cents+1)
-	// keep[i] = índice do jogo escolhido quando atingiu esse valor
-	keep := make([][]bool, len(games))
-	for i := range keep {
-		keep[i] = make([]bool, cents+1)
+	from := make([]int, cents+1)
+
+	for i := range from {
+		from[i] = -1
 	}
 
 	for idx, g := range games {
 		price := int(math.Round(float64(g.Price * 100)))
 		benefit := megaSenaProbability(int(g.Numbers))
 
-		// percorre de trás pra frente (0/1 knapsack)
-		for c := cents; c >= price; c-- {
+		for c := price; c <= cents; c++ {
 			if dp[c-price]+benefit > dp[c] {
 				dp[c] = dp[c-price] + benefit
-				keep[idx][c] = true
+				from[c] = idx
 			}
 		}
 	}
 
-	// reconstrução do subconjunto
-	result := []entities.ResultItem{}
+	resultMap := map[int16]*entities.ResultItem{}
 	var totalAmount float64
 	c := cents
 
-	for i := len(games) - 1; i >= 0; i-- {
-		price := int(math.Round(float64(games[i].Price * 100)))
-		if price <= c && keep[i][c] {
-			result = append(result, entities.ResultItem{
-				Game:     games[i].Numbers,
-				Quantity: 1,
-				Amount:   games[i].Price,
-			})
-			totalAmount += games[i].Price
-			c -= price
+	for c > 0 && from[c] != -1 {
+		i := from[c]
+		g := games[i]
+		price := int(math.Round(float64(g.Price * 100)))
+
+		if _, ok := resultMap[g.Numbers]; !ok {
+			resultMap[g.Numbers] = &entities.ResultItem{
+				Game:     g.Numbers,
+				Quantity: 0,
+				Amount:   0,
+			}
 		}
+
+		item := resultMap[g.Numbers]
+		item.Quantity++
+		item.Amount += g.Price
+		totalAmount += g.Price
+
+		c -= price
 	}
 
-	finalProb := computeFinalProbability(result)
+	items := []entities.ResultItem{}
+	for _, v := range resultMap {
+		items = append(items, *v)
+	}
+
+	finalProb := computeFinalProbability(items)
 
 	return entities.OptimizationResult{
-		Items:            result,
+		Items:            items,
 		TotalAmount:      totalAmount,
 		TotalBenefit:     dp[cents],
 		FinalProbability: finalProb,
