@@ -41,10 +41,17 @@ func CalculateHandler(c *gin.Context) {
 		convertedGames = append(convertedGames, entities.Game{
 			Numbers: value.Numbers,
 			Price:   value.Price,
+			AtLeast: value.GetAtLeastValue(),
 		})
 
 	}
-	output := services.CalculateBestCombination(req.Budget, convertedGames)
+	output, err := services.CalculateBestCombinationWithAtLeast(req.Budget, convertedGames)
+	if err != nil {
+		responseError.Error = err.Error()
+		c.JSON(http.StatusBadRequest, responseError)
+		return
+
+	}
 
 	responseGames := make([]schemas.ResultItemResponse, 0)
 	for _, value := range output.Items {

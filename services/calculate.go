@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"math"
 
 	"github.com/javiersrf/mega/entities"
@@ -13,13 +14,19 @@ func combination(n, k int) float64 {
 	if k == 0 || k == n {
 		return 1
 	}
-	k = int(math.Min(float64(k), float64(n-k)))
-	num, den := 1.0, 1.0
-	for i := 1; i <= k; i++ {
-		num *= float64(n - (k - i))
-		den *= float64(i)
+	num := 1.0
+	den := 1.0
+	for i := 0; i < k; i++ {
+		num *= float64(n - i)
+		den *= float64(i + 1)
 	}
 	return num / den
+}
+
+func gameWinProbability(numbers int16) float64 {
+	totalComb := combination(60, 6)
+	gameComb := combination(int(numbers), 6)
+	return gameComb / totalComb
 }
 
 func megaSenaProbability(k int) float64 {
@@ -37,64 +44,67 @@ func computeFinalProbability(items []entities.ResultItem) float64 {
 	return 1 - prod
 }
 
-func CalculateBestCombination(budget float64, games []entities.Game) entities.OptimizationResult {
-	cents := int(math.Round(float64(budget * 100)))
+func CalculateBestCombinationWithAtLeast(
+	budget float64,
+	games []entities.Game,
+) (entities.OptimizationResult, error) {
 
-	dp := make([]float64, cents+1)
-	from := make([]int, cents+1)
+	result := entities.OptimizationResult{}
+	remaining := budget
+	probability := 0.0
+	gameCount := make(map[int16]int32)
 
-	for i := range from {
-		from[i] = -1
-	}
-
-	for idx, g := range games {
-		price := int(math.Round(float64(g.Price * 100)))
-		benefit := megaSenaProbability(int(g.Numbers))
-
-		for c := price; c <= cents; c++ {
-			if dp[c-price]+benefit > dp[c] {
-				dp[c] = dp[c-price] + benefit
-				from[c] = idx
+	for _, g := range games {
+		if g.AtLeast > 0 {
+			requiredCost := float64(g.AtLeast) * g.Price
+			if requiredCost > remaining {
+				return result, errors.New("budget insufficient to satisfy AtLeast constraints")
 			}
+
+			gameCount[g.Numbers] += int32(g.AtLeast)
+			remaining -= requiredCost
+			probability += float64(g.AtLeast) * gameWinProbability(g.Numbers)
 		}
 	}
 
-	resultMap := map[int16]*entities.ResultItem{}
-	var totalAmount float64
-	c := cents
+	for remaining > 0 {
+		bestIdx := -1
+		bestScore := -1.0
 
-	for c > 0 && from[c] != -1 {
-		i := from[c]
-		g := games[i]
-		price := int(math.Round(float64(g.Price * 100)))
+		for i, g := range games {
+			if g.Price <= remaining {
+				score := gameWinProbability(g.Numbers) / g.Price
+				if score > bestScore {
+					bestScore = score
+					bestIdx = i
+				}
+			}
+		}
 
-		if _, ok := resultMap[g.Numbers]; !ok {
-			resultMap[g.Numbers] = &entities.ResultItem{
+		if bestIdx == -1 {
+			break
+		}
+
+		gameCount[games[bestIdx].Numbers]++
+		remaining -= games[bestIdx].Price
+		probability += gameWinProbability(games[bestIdx].Numbers)
+	}
+
+	// 3️⃣ Monta o resultado final
+	totalAmount := budget - remaining
+
+	for _, g := range games {
+		if q, ok := gameCount[g.Numbers]; ok && q > 0 {
+			result.Items = append(result.Items, entities.ResultItem{
+				Quantity: q,
+				Amount:   float64(q) * g.Price,
 				Game:     g.Numbers,
-				Quantity: 0,
-				Amount:   0,
-			}
+			})
 		}
-
-		item := resultMap[g.Numbers]
-		item.Quantity++
-		item.Amount += g.Price
-		totalAmount += g.Price
-
-		c -= price
 	}
 
-	items := []entities.ResultItem{}
-	for _, v := range resultMap {
-		items = append(items, *v)
-	}
+	result.FinalProbability = math.Min(probability, 1)
+	result.TotalAmount = totalAmount
 
-	finalProb := computeFinalProbability(items)
-
-	return entities.OptimizationResult{
-		Items:            items,
-		TotalAmount:      totalAmount,
-		TotalBenefit:     dp[cents],
-		FinalProbability: finalProb,
-	}
+	return result, nil
 }
